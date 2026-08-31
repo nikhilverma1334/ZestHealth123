@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueGateway } from './queue.gateway';
 import { GoogleMapsService } from '../maps/google-maps.service';
 import { createClient } from 'redis';
 
 @Injectable()
-export class QueueService {
+export class QueueService implements OnModuleDestroy {
   private readonly logger = new Logger(QueueService.name);
   private redisClient;
 
@@ -65,6 +65,12 @@ export class QueueService {
       this.logger.error('Fatal: Failed to connect to Redis on startup', err);
       process.exit(1);
     });
+  }
+
+  async onModuleDestroy() {
+    if (this.redisClient) {
+      await this.redisClient.quit();
+    }
   }
 
   async updateAppointmentStatus(appointmentId: string, status: any, patientLocation?: { lat: number, lng: number }) {
