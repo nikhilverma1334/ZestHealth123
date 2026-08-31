@@ -36,12 +36,16 @@ export class QueueService {
     const isTls = redisUrl.startsWith('rediss://');
     this.redisClient = createClient({
       url: redisUrl,
-      ...(isTls && {
-        socket: {
-          tls: true,
-          // Removed rejectUnauthorized: false to enforce Let's Encrypt CA validation
+      socket: {
+        ...(isTls && { tls: true }),
+        reconnectStrategy: (retries: number) => {
+          if (retries >= 5) {
+            this.logger.error('Max Redis connection retries exhausted');
+            return new Error('Max retries exhausted');
+          }
+          return Math.min(retries * 500, 3000);
         }
-      })
+      }
     });
 
     this.redisClient.on('connect', () => {
