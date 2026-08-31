@@ -1,0 +1,10 @@
+{
+  "name": "zesthealth",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "admin-web",
+    "superadmin-web"
+  ]
+}

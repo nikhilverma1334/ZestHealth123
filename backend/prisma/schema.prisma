@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model PlatformAdmin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HospitalOrg {
+  id               String       @id @default(uuid())
+  name             String
+  subscriptionTier String       @default("FREE")
+  brandingConfig   Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  branches         Branch[]
+  staffRoles       StaffRole[]
+  appointments     Appointment[]
+}
+
+model Branch {
+  id             String       @id @default(uuid())
+  hospitalOrgId  String
+  name           String
+  address        String
+  latitude       Float?
+  longitude      Float?
+  operatingHours Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  hospitalOrg    HospitalOrg  @relation(fields: [hospitalOrgId], references: [id])
+  staffRoles     StaffRole[]
+  doctorBranches DoctorBranch[]
+  appointments   Appointment[]
+}
+
+enum Role {
+  HOSPITAL_ADMIN
+  BRANCH_RECEPTION
+  DOCTOR
+}
+
+model StaffUser {
+  id            String       @id @default(uuid())
+  name          String
+  phone         String?      
+  email         String?      @unique
+  password      String?
+  otpHash       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  roles         StaffRole[]
+  doctorProfile Doctor?
+}
+
+model StaffRole {
+  id            String       @id @default(uuid())
+  staffUserId   String
+  tenantId      String
+  branchId      String?
+  role          Role
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  staffUser     StaffUser    @relation(fields: [staffUserId], references: [id])
+  hospitalOrg   HospitalOrg  @relation(fields: [tenantId], references: [id])
+  branch        Branch?      @relation(fields: [branchId], references: [id])
+}
+
+model Doctor {
+  id             String         @id @default(uuid())
+  staffUserId    String         @unique
+  specialties    String[]
+  qualifications String[]
+  photoUrl       String?
+  rating         Float          @default(0.0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  staffUser      StaffUser      @relation(fields: [staffUserId], references: [id])
+  doctorBranches DoctorBranch[]
+  availabilities DoctorAvailability[]
+  appointments   Appointment[]
+}
+
+model DoctorBranch {
+  id         String   @id @default(uuid())
+  doctorId   String
+  branchId   String
+  schedule   Json?    // e.g., which days they are at this branch
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  branch     Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([doctorId, branchId])
+}
+
+model Patient {
+  id             String        @id @default(uuid())
+  phone          String        @unique // Encrypted at app layer
+  name           String        // Encrypted at app layer
+  dob            DateTime?
+  gender         String?
+  abhaId         String?       @unique
+  dependents     Json?
+  savedAddresses Json?
+  deletedAt      DateTime?
+  consentGivenAt DateTime?     @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  appointments   Appointment[]
+}
+
+model SpecialtyMap {
+  id          String   @id @default(uuid())
+  keyword     String   @unique
+  specialty   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DoctorAvailability {
+  id                    String   @id @default(uuid())
+  doctorId              String
+  branchId              String
+  date                  DateTime @db.Date
+  startTime             String   // HH:mm
+  endTime               String   // HH:mm
+  slotDuration          Int      // in minutes
+  maxPatientsPerSlot    Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  doctor                Doctor   @relation(fields: [doctorId], references: [id])
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  IN_QUEUE
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id                 String            @id @default(uuid())
+  tenantId           String
+  patientId          String
+  doctorId           String
+  branchId           String
+  date               DateTime          @db.Date
+  timeSlot           String
+  tokenNumber        Int
+  status               AppointmentStatus @default(BOOKED)
+  cancellationReason   String?
+  consultationStartedAt DateTime?
+  arrivedAt            DateTime?
+  leaveNowSent         Boolean           @default(false)
+  priority             Int               @default(0) // 0=normal, higher=emergency
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  hospitalOrg        HospitalOrg       @relation(fields: [tenantId], references: [id])
+  patient            Patient           @relation(fields: [patientId], references: [id])
+  doctor             Doctor            @relation(fields: [doctorId], references: [id])
+  branch             Branch            @relation(fields: [branchId], references: [id])
+
+  notificationLogs   NotificationLog[]
+}
+
+model NotificationLog {
+  id             String      @id @default(uuid())
+  appointmentId  String
+  channel        String      // SMS, WHATSAPP, IVR, PUSH
+  type           String      // BOOKING_CONFIRMATION, CANCELLED, ETA_ALERT
+  status         String      // PENDING, SENT, FAILED
+  sentAt         DateTime?
+  createdAt      DateTime    @default(now())
+
+  appointment    Appointment @relation(fields: [appointmentId], references: [id])
+}
