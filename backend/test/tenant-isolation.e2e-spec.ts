@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 
+jest.setTimeout(30000); // Allow time for Neon/Upstash cold starts over the network
+
 describe('Tenant Isolation (e2e)', () => {
   let app: INestApplication;
 
@@ -47,6 +49,8 @@ describe('Tenant Isolation (e2e)', () => {
     
     // The query should return Tenant A's staff, completely ignoring 'tenantB-uuid',
     // thus proving cross-tenant read with a forged header is rejected/ignored.
+  });
+
   it('rejects multi-role user when x-tenant-id header is omitted', async () => {
     // This would use a JWT with multiple roles, omitted header
     // Since we don't have a real DB setup in this skeleton test, we would mock it.
