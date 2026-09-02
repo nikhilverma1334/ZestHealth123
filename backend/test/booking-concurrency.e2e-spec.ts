@@ -91,9 +91,10 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
       }
     });
 
+    const runId = Date.now().toString().slice(-6); // last 6 digits of timestamp
     for (let i = 0; i < 50; i++) {
       const p = await prisma.patient.create({
-        data: { name: `Test Patient ${i}`, phone: `+200000000${i}` }
+        data: { name: `Test Patient ${i}`, phone: `+2${runId}000${i}` }
       });
       patientIds.push(p.id);
     }
