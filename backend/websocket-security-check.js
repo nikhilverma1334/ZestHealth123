@@ -54,6 +54,7 @@ async function run() {
   }
 
   console.log('\n--- Running Scenarios ---\n');
+  try {
 
   // Scenario 1
   let s1 = await connect(null);
@@ -61,7 +62,7 @@ async function run() {
 
   // Scenario 2
   let s2 = await connect(expiredToken);
-  console.log('2. Expired Token: ', s2.error ? \PASS (Error: \)\ : 'FAIL');
+  console.log('2. Expired Token: ', s2.error ? `PASS (Error: ${s2.error})` : 'FAIL');
 
   // Scenario 3
   let s3Socket = await connect(validToken);
@@ -104,7 +105,7 @@ async function run() {
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
-          'Authorization': \Bearer \\,
+          'Authorization': `Bearer ${validToken}`,
           'x-tenant-id': org.id
         }
       });
@@ -118,8 +119,7 @@ async function run() {
   console.log('5. Valid Connection & Broadcast: ', s5Result.queueLength > 0 ? 'PASS (Received queue_update broadcast)' : 'FAIL');
 
   } finally {
-  console.log(
---- Cleaning Up DB ---);
+  console.log('\n--- Cleaning Up DB ---');
   // Cleanup
   await prisma.notificationLog.deleteMany({ where: { appointment: { branchId: branch1.id } } });
   await prisma.appointment.deleteMany({ where: { branchId: branch1.id } });

@@ -166,7 +166,7 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
     
     if (failedBookings.length > 0) {
       console.log(`\n--- CONCURRENCY FAILURES (${failedBookings.length}/${CONCURRENCY_COUNT}) ---`);
-      failedBookings.forEach((f, idx) => console.log(`Failure ${idx + 1}: Status ${f.status}, Error:`, f.error || f.body));
+      failedBookings.forEach((f, idx) => console.log(`Failure ${idx + 1}: Status ${f.status}, Error:`, ('error' in f) ? (f as any).error : f.body));
     }
 
     // Test should pass purely

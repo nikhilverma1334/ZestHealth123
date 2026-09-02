@@ -11,7 +11,7 @@ export class HospitalController {
   async getStaff(@Request() req: any) {
     const tenantId = req.tenantId;
     return this.prisma.staffUser.findMany({
-      where: { tenantId }
+      where: { roles: { some: { tenantId } } }
     });
   }
 }

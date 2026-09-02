@@ -1,5 +1,5 @@
 import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req } from '@nestjs/common';
-import { Response, Request } from 'express';
+import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -32,12 +32,14 @@ export class AuthController {
     
     const isMobile = req.headers['x-client-type'] === 'mobile';
     
-    if (!isMobile) {
+    if (isMobile) {
+      return tokens; // send in body
+    } else {
       const isProd = process.env.NODE_ENV === 'production';
       const cookieOptions = {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'strict' as const,
+        sameSite: isProd ? 'strict' as const : 'lax' as const,
         domain: isProd ? '.zesthealth.com' : undefined,
       };
 
@@ -46,14 +48,14 @@ export class AuthController {
         maxAge: 15 * 60 * 1000 // 15 mins
       });
 
-      res.cookie('refresh_token', tokens.refresh_token, {
-        ...cookieOptions,
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
+      if ('refresh_token' in tokens) {
+        res.cookie('refresh_token', (tokens as any).refresh_token, {
+          ...cookieOptions,
+          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+      }
 
       return { message: 'Authenticated successfully' };
-    } else {
-      return tokens;
     }
   }
 
