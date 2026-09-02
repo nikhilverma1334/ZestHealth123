@@ -39,16 +39,44 @@ async function run() {
   const validToken = jwt.sign(validPayload, SECRET, { expiresIn: '1h' });
   const expiredToken = jwt.sign(validPayload, SECRET, { expiresIn: '-1h' });
 
-  function connect(token) {
+  function connect(token, scenarioName) {
     return new Promise((resolve) => {
       const socket = io(URL, { auth: { token }, reconnection: false });
+      let resolved = false;
+      let stateLog = [];
       
-      socket.on('connect', () => resolve(socket));
-      socket.on('disconnect', (reason) => resolve({ disconnected: true, reason }));
-      socket.on('connect_error', (err) => resolve({ error: err.message }));
+      socket.on('connect', () => {
+        stateLog.push('connect_emitted');
+        // Wait a short bit because NestJS handleConnection might forcefully disconnect us a few ms later
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            resolve({ socket, stateLog });
+          }
+        }, 500);
+      });
+      
+      socket.on('disconnect', (reason) => {
+        stateLog.push(`disconnect_emitted(${reason})`);
+        if (!resolved) {
+          resolved = true;
+          resolve({ disconnected: true, reason, stateLog });
+        }
+      });
+      
+      socket.on('connect_error', (err) => {
+        stateLog.push(`connect_error_emitted(${err.message})`);
+        if (!resolved) {
+          resolved = true;
+          resolve({ error: err.message, stateLog });
+        }
+      });
       
       setTimeout(() => {
-        if (!socket.connected) resolve({ error: 'timeout' });
+        if (!resolved) {
+          resolved = true;
+          resolve({ error: 'timeout', stateLog });
+        }
       }, 2000);
     });
   }
@@ -57,15 +85,17 @@ async function run() {
   try {
 
   // Scenario 1
-  let s1 = await connect(null);
-  console.log('1. No Token: ', s1.disconnected ? 'PASS (Disconnected)' : 'FAIL');
+  let s1 = await connect(null, 'Scenario 1');
+  console.log('1. No Token: ', s1.disconnected ? `PASS (Disconnected: ${s1.reason})` : 'FAIL');
 
   // Scenario 2
-  let s2 = await connect(expiredToken);
-  console.log('2. Expired Token: ', s2.error ? `PASS (Error: ${s2.error})` : 'FAIL');
+  let s2 = await connect(expiredToken, 'Scenario 2');
+  console.log(`   [Scenario 2 Debug] Observed events: ${s2.stateLog.join(' -> ')}`);
+  console.log('2. Expired Token: ', s2.disconnected ? `PASS (Disconnected: ${s2.reason})` : 'FAIL');
 
   // Scenario 3
-  let s3Socket = await connect(validToken);
+  let s3Data = await connect(validToken, 'Scenario 3');
+  let s3Socket = s3Data.socket;
   let s3Result = await new Promise((resolve) => {
     s3Socket.on('error', (msg) => resolve(msg));
     s3Socket.emit('subscribe_queue', { tenantId: 'wrong-uuid', branchId: branch1.id });
@@ -75,7 +105,8 @@ async function run() {
   console.log('3. Wrong Tenant: ', s3Result === 'Unauthorized to subscribe to this queue' ? 'PASS (Received Error Event)' : 'FAIL');
 
   // Scenario 4
-  let s4Socket = await connect(validToken);
+  let s4Data = await connect(validToken, 'Scenario 4');
+  let s4Socket = s4Data.socket;
   let s4Result = await new Promise((resolve) => {
     s4Socket.on('error', (msg) => resolve(msg));
     s4Socket.emit('subscribe_queue', { tenantId: org.id, branchId: branch2.id });
@@ -85,7 +116,8 @@ async function run() {
   console.log('4. Wrong Branch: ', s4Result === 'Unauthorized to subscribe to this queue' ? 'PASS (Received Error Event)' : 'FAIL');
 
   // Scenario 5
-  let s5Socket = await connect(validToken);
+  let s5Data = await connect(validToken, 'Scenario 5');
+  let s5Socket = s5Data.socket;
   let s5Result = await new Promise((resolve) => {
     s5Socket.on('queue_update', (data) => resolve(data));
     s5Socket.emit('subscribe_queue', { tenantId: org.id, branchId: branch1.id });
