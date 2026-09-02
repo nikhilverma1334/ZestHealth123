@@ -111,6 +111,11 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
 
   afterAll(async () => {
     // Cleanup DB (Delete in reverse dependency order)
+    const appts = await prisma.appointment.findMany({ where: { branchId }, select: { id: true } });
+    const apptIds = appts.map(a => a.id);
+    if (apptIds.length > 0) {
+      await prisma.notificationLog.deleteMany({ where: { appointmentId: { in: apptIds } } });
+    }
     await prisma.appointment.deleteMany({ where: { branchId } });
     await prisma.doctorAvailability.deleteMany({ where: { branchId } });
     await prisma.doctorBranch.deleteMany({ where: { branchId } });

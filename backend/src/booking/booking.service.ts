@@ -72,6 +72,9 @@ export class BookingService {
       ).catch(console.error);
 
       return newAppointment;
+    }, {
+      timeout: 20000,
+      maxWait: 20000
     });
   }
 
