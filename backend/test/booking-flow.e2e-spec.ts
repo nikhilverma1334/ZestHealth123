@@ -48,11 +48,17 @@ describe('Booking Flow (e2e)', () => {
     });
 
     // Create Patient via API
-    // 1. Generate OTP
+    // 1. Generate OTP and capture the mock SMS log
+    const consoleSpy = jest.spyOn(console, 'log');
     await request(app.getHttpServer()).post('/auth/generate-otp').send({ phone: '+55555', name: 'Flow Patient' }).expect(201);
     
+    const logCall = consoleSpy.mock.calls.find(call => typeof call[0] === 'string' && call[0].includes('[MOCK SMS] OTP for +55555'));
+    const otpMatch = logCall[0].match(/is (\d{4})/);
+    const realOtp = otpMatch[1];
+    consoleSpy.mockRestore();
+    
     // 2. Verify OTP
-    const verifyRes = await request(app.getHttpServer()).post('/auth/verify-otp').send({ phone: '+55555', otp: '123456', userType: 'PATIENT' }).expect(201);
+    const verifyRes = await request(app.getHttpServer()).post('/auth/verify-otp').send({ phone: '+55555', otp: realOtp, userType: 'PATIENT' }).expect(201);
     
     patientToken = verifyRes.body.access_token;
     
