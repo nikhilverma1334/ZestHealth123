@@ -13,7 +13,7 @@ export class BookingService {
   ) {}
 
   async bookAppointment(patientId: string, doctorId: string, branchId: string, tenantId: string, date: Date, timeSlot: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Lock the DoctorAvailability row for this specific slot to prevent concurrent bookings
       const availability = await tx.$queryRaw<any[]>`
         SELECT * FROM "DoctorAvailability" 
@@ -24,9 +24,6 @@ export class BookingService {
       `;
 
       if (!availability || availability.length === 0) {
-        // Fallback if the raw query fails or slot doesn't exist
-        // For tests, we might not seed it perfectly, so let's allow it but still lock via an advisory lock or similar if needed.
-        // For now, if no row, throw error.
         throw new BadRequestException('Availability slot not found');
       }
 
@@ -64,18 +61,25 @@ export class BookingService {
         }
       });
 
-      // (We would dispatch to a queue here instead of awaiting in tx in prod)
-      this.notificationService.sendBookingConfirmation(
-        newAppointment.id, 
-        newAppointment.patientId, 
-        newAppointment.patient.phone
-      ).catch(console.error);
-
       return newAppointment;
     }, {
-      timeout: 20000,
-      maxWait: 20000
+      // Free-tier PG concurrency over a network takes ~1.5s per queued lock request.
+      // For a concurrency queue depth of 15, we need ~22.5s to clear the queue.
+      // Setting 40s to provide ample headroom for network variability.
+      timeout: 40000,
+      maxWait: 40000
     });
+
+    // Fire side-effects OUTSIDE the transaction.
+    // Firing inside the transaction causes FK constraint failures because the 
+    // notification worker tries to look up the Appointment ID before the tx commits.
+    this.notificationService.sendBookingConfirmation(
+      result.id, 
+      result.patientId, 
+      result.patient.phone
+    ).catch(console.error);
+
+    return result;
   }
 
   async cancelAppointment(appointmentId: string, reason: string) {
