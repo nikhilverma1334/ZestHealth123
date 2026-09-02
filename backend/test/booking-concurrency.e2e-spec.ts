@@ -111,6 +111,10 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
   });
 
   afterAll(async () => {
+    // Wait for any in-flight background notification tasks to settle 
+    // before we wipe the DB, otherwise they'll throw P2025 errors.
+    await new Promise(r => setTimeout(r, 1000));
+
     // Cleanup DB (Delete in reverse dependency order)
     const appts = await prisma.appointment.findMany({ where: { branchId }, select: { id: true } });
     const apptIds = appts.map(a => a.id);

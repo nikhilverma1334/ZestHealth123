@@ -54,15 +54,15 @@ export class NotificationService {
 
     try {
       await sendAction();
-      // Update to SENT (use updateMany to avoid P2025 if test teardown deletes it first)
-      await this.prisma.notificationLog.updateMany({
+      // Update to SENT
+      await this.prisma.notificationLog.update({
         where: { id: log.id },
         data: { status: 'SENT', sentAt: new Date() }
       });
     } catch (error) {
       // Update to FAILED
       // In a real app, we would push to a BullMQ retry queue here
-      await this.prisma.notificationLog.updateMany({
+      await this.prisma.notificationLog.update({
         where: { id: log.id },
         data: { status: 'FAILED' }
       });
