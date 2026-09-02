@@ -14,6 +14,7 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
   let tenantId: string;
   let branchId: string;
   let doctorId: string;
+  let staffUserId: string;
   let patientIds: string[] = [];
   let token: string;
 
@@ -35,37 +36,58 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
     tenantId = org.id;
 
     const branch = await prisma.branch.create({
-      data: { name: 'Concurrency Branch', hospitalOrgId: org.id },
+      data: { 
+        name: 'Concurrency Branch', 
+        hospitalOrgId: org.id,
+        address: '123 Test Street, Test City', // Added required address field
+      },
     });
     branchId = branch.id;
 
-    const doctor = await prisma.staffUser.create({
+    // Create StaffUser correctly (no role/tenantId on the user itself)
+    const staffUser = await prisma.staffUser.create({
       data: {
         name: 'Dr. Concurrency',
         phone: `+1000000${Math.floor(Math.random() * 1000)}`,
-        passwordHash: 'hash',
-        role: 'DOCTOR',
-        tenantId: org.id,
-        branchId: branch.id,
-        doctorProfile: {
-          create: { specialties: ['General'], experienceYears: 5, consultationFee: 100 }
-        }
+        password: 'hash',
       },
     });
-    doctorId = doctor.id;
+    staffUserId = staffUser.id;
 
-    // Create Doctor Availability with enough capacity
+    // Create Doctor Profile
+    const doctor = await prisma.doctor.create({
+      data: {
+        staffUserId: staffUser.id,
+        specialties: ['General'],
+        qualifications: ['MBBS'],
+      }
+    });
+    const realDoctorId = doctor.id; // The ID used in Appointment.doctorId
+    doctorId = realDoctorId;
+
+    // Create StaffRole for Auth
+    await prisma.staffRole.create({
+      data: {
+        staffUserId: staffUser.id,
+        tenantId: org.id,
+        branchId: branch.id,
+        role: 'BRANCH_RECEPTION' // Role used to authorize the booking
+      }
+    });
+
+    // Create Doctor Availability with correct schema fields
     const testDate = new Date();
-    testDate.setUTCHours(0,0,0,0); // Match how date is queried
+    testDate.setUTCHours(0,0,0,0); 
 
     await prisma.doctorAvailability.create({
       data: {
-        doctorId: doctorId,
+        doctorId: realDoctorId,
         branchId: branchId,
         date: testDate,
-        timeSlot: '09:00',
-        maxPatients: 60, // accommodate 50 requests
-        bookedCount: 0
+        startTime: '09:00',
+        endTime: '17:00',
+        slotDuration: 30,
+        maxPatientsPerSlot: 60, // accommodate 50 requests
       }
     });
 
@@ -76,9 +98,9 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
       patientIds.push(p.id);
     }
 
-    // 2. Generate Real JWT for an admin booking these patients
+    // 2. Generate Real JWT using the StaffUser ID
     token = jwtService.sign({
-      sub: doctor.id,
+      sub: staffUser.id,
       role: 'BRANCH_RECEPTION',
       tenantId: tenantId,
       branchId: branchId
@@ -87,10 +109,13 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
 
   afterAll(async () => {
     // Cleanup DB (Delete in reverse dependency order)
-    await prisma.appointment.deleteMany({ where: { doctorId } });
-    await prisma.doctorAvailability.deleteMany({ where: { doctorId } });
+    await prisma.appointment.deleteMany({ where: { branchId } });
+    await prisma.doctorAvailability.deleteMany({ where: { branchId } });
+    await prisma.doctorBranch.deleteMany({ where: { branchId } });
+    await prisma.doctor.deleteMany({ where: { id: doctorId } });
+    await prisma.staffRole.deleteMany({ where: { branchId } });
+    await prisma.staffUser.deleteMany({ where: { id: staffUserId } });
     await prisma.patient.deleteMany({ where: { id: { in: patientIds } } });
-    await prisma.staffUser.deleteMany({ where: { id: doctorId } });
     await prisma.branch.deleteMany({ where: { id: branchId } });
     await prisma.hospitalOrg.deleteMany({ where: { id: tenantId } });
 
