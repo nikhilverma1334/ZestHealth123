@@ -117,6 +117,9 @@ async function run() {
   s5Socket.disconnect();
   console.log('5. Valid Connection & Broadcast: ', s5Result.queueLength > 0 ? 'PASS (Received queue_update broadcast)' : 'FAIL');
 
+  } finally {
+  console.log(
+--- Cleaning Up DB ---);
   // Cleanup
   await prisma.notificationLog.deleteMany({ where: { appointment: { branchId: branch1.id } } });
   await prisma.appointment.deleteMany({ where: { branchId: branch1.id } });
@@ -128,6 +131,7 @@ async function run() {
   await prisma.hospitalOrg.delete({ where: { id: org.id } });
   
   await prisma.$disconnect();
+  }
   process.exit(0);
 }
 
