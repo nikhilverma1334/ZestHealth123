@@ -208,5 +208,17 @@ export class QueueService implements OnModuleDestroy {
         travelTimeText: durationText
       });
     }
+
+    if (appointments.length > 0) {
+      const tenantId = appointments[0].tenantId;
+      this.queueGateway.notifyTenantStaff(tenantId, branchId, {
+        doctorId,
+        branchId,
+        date,
+        timeSlot,
+        currentlyServingToken,
+        queueLength: appointments.length
+      });
+    }
   }
 }
