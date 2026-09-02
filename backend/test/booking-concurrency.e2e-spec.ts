@@ -101,9 +101,11 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
     // 2. Generate Real JWT using the StaffUser ID
     token = jwtService.sign({
       sub: staffUser.id,
-      role: 'BRANCH_RECEPTION',
-      tenantId: tenantId,
-      branchId: branchId
+      roles: [{
+        role: 'BRANCH_RECEPTION',
+        tenantId: tenantId,
+        branchId: branchId
+      }]
     });
   });
 
@@ -134,6 +136,7 @@ describe('BookingModule (e2e) - Concurrency Stress Test', () => {
         request(app.getHttpServer())
           .post('/booking/book')
           .set('Authorization', `Bearer ${token}`)
+          .set('x-tenant-id', tenantId)
           .send({
             doctorId: doctorId,
             branchId: branchId,

@@ -45,12 +45,6 @@ export class TenantGuard implements CanActivate {
         throw new ForbiddenException('Staff does not have access to this tenant');
       }
       (request as any).tenantId = headerTenantId;
-    } else if (user.role && user.tenantId) {
-      // Handle standard staff user with single tenant scope in JWT
-      if (headerTenantId && headerTenantId !== user.tenantId) {
-        throw new ForbiddenException('Staff does not have access to this tenant');
-      }
-      (request as any).tenantId = headerTenantId || user.tenantId;
     } else if (user.role === 'PATIENT') {
        (request as any).tenantId = headerTenantId;
     } else {
