@@ -22,8 +22,9 @@ export class AuthService {
     const payload = { sub: userId, ...roleInfo };
     const access_token = this.jwtService.sign(payload);
     
-    // Generate a secure random refresh token
-    const refresh_token = Buffer.from(Math.random().toString() + Date.now().toString()).toString('base64');
+    // Generate a secure random refresh token using crypto CSPRNG
+    const crypto = require('crypto');
+    const refresh_token = crypto.randomBytes(32).toString('base64');
     
     // Store it
     this.validRefreshTokens.set(refresh_token, { userId, roleInfo });
@@ -63,8 +64,9 @@ export class AuthService {
   }
 
   async requestPatientOtp(phone: string) {
-    // Generate a 4-digit OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate a 4-digit OTP using CSPRNG
+    const crypto = require('crypto');
+    const otp = crypto.randomInt(1000, 10000).toString();
     
     // Hash it before storing (Rule: OTPs must be hashed)
     const salt = await bcrypt.genSalt(10);
