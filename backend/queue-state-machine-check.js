@@ -96,8 +96,28 @@ async function run() {
 
   const today = new Date();
   today.setHours(0,0,0,0);
-  await prisma.doctorAvailability.create({ data: { doctorId: doctorA.id, branchId: branchA.id, date: today, maxPatientsPerSlot: 10 } });
-  await prisma.doctorAvailability.create({ data: { doctorId: doctorB.id, branchId: branchB.id, date: today, maxPatientsPerSlot: 10 } });
+  await prisma.doctorAvailability.create({ 
+    data: { 
+      doctorId: doctorA.id, 
+      branchId: branchA.id, 
+      date: today, 
+      startTime: '09:00',
+      endTime: '17:00',
+      slotDuration: 30,
+      maxPatientsPerSlot: 10 
+    } 
+  });
+  await prisma.doctorAvailability.create({ 
+    data: { 
+      doctorId: doctorB.id, 
+      branchId: branchB.id, 
+      date: today, 
+      startTime: '09:00',
+      endTime: '17:00',
+      slotDuration: 30,
+      maxPatientsPerSlot: 10 
+    } 
+  });
 
   const staffTokenA = jwt.sign({ sub: staffA.id, roles: [{ role: 'BRANCH_RECEPTION', tenantId: orgA.id, branchId: branchA.id }] }, SECRET, { expiresIn: '1h' });
   const staffTokenB = jwt.sign({ sub: staffB.id, roles: [{ role: 'BRANCH_RECEPTION', tenantId: orgB.id, branchId: branchB.id }] }, SECRET, { expiresIn: '1h' });
