@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { TenantGuard } from '../auth/tenant.guard';
+import { BookAppointmentDto, CancelAppointmentDto } from './booking.dto';
 
 @Controller('booking')
 export class BookingController {
@@ -8,7 +9,7 @@ export class BookingController {
 
   @Post('book')
   @UseGuards(TenantGuard)
-  async book(@Request() req: any, @Body() body: any) {
+  async book(@Request() req: any, @Body() body: BookAppointmentDto) {
     const { doctorId, branchId, date, timeSlot } = body;
     // Patient ID should come from JWT (req.user.sub) if booked by patient
     // If booked by staff for walk-in, they provide patientId
@@ -26,10 +27,7 @@ export class BookingController {
 
   @Post('cancel')
   @UseGuards(TenantGuard)
-  async cancel(@Body() body: any) {
-    if (!body.appointmentId) {
-      throw new BadRequestException('appointmentId is required');
-    }
-    return this.bookingService.cancelAppointment(body.appointmentId, body.reason);
+  async cancel(@Body() body: CancelAppointmentDto) {
+    return this.bookingService.cancelAppointment(body.appointmentId, body.reason || '');
   }
 }

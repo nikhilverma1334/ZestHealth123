@@ -1,6 +1,6 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { SuperadminService } from './superadmin.service';
-import { TenantGuard } from '../auth/tenant.guard';
+import { OnboardTenantDto } from './superadmin.dto';
 
 @Controller('superadmin')
 export class SuperadminController {
@@ -8,7 +8,7 @@ export class SuperadminController {
 
   @Post('onboard')
   // @UseGuards(TenantGuard) - We would normally protect this with JWT and TenantGuard checking for PLATFORM_SUPER_ADMIN
-  async onboard(@Body() body: any) {
+  async onboard(@Body() body: OnboardTenantDto) {
     return this.superadminService.onboardHospital({
       hospitalName: body.orgName,
       branchName: body.branchName,

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { TenantGuard } from '../auth/tenant.guard';
+import { EmergencyInsertDto } from './admin.dto';
 
 @Controller('admin')
 @UseGuards(TenantGuard)
@@ -17,7 +18,7 @@ export class AdminController {
   }
 
   @Post('emergency-insert')
-  async emergencyInsert(@Request() req: any, @Body() body: any) {
+  async emergencyInsert(@Request() req: any, @Body() body: EmergencyInsertDto) {
     const { patientId, doctorId, branchId, date, timeSlot, reason } = body;
     if (!reason || reason.trim() === '') {
       throw new BadRequestException('Emergency insertion requires an audit reason.');

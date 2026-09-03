@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { SearchService } from './search.service';
+import { SearchDoctorsDto } from './search.dto';
 
 @Controller('search')
 export class SearchController {
@@ -7,19 +8,17 @@ export class SearchController {
 
   @Get('doctors')
   async search(
-    @Query('q') q: string,
-    @Query('lat') lat?: string,
-    @Query('lng') lng?: string
+    @Query() query: SearchDoctorsDto
   ) {
-    if (!q) {
+    if (!query.q) {
       return [];
     }
     
     let location = undefined;
-    if (lat && lng) {
-      location = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    if (query.lat !== undefined && query.lng !== undefined) {
+      location = { lat: query.lat, lng: query.lng };
     }
 
-    return this.searchService.searchDoctors(q, location);
+    return this.searchService.searchDoctors(query.q, location);
   }
 }

@@ -1,13 +1,15 @@
 import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req, Get, Query, Headers } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
+import { GenerateOtpDto, VerifyOtpDto, RefreshDto } from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('generate-otp')
-  async generateOtp(@Body('phone') phone: string, @Body('userType') userType: string) {
+  async generateOtp(@Body() body: GenerateOtpDto) {
+    const { phone, userType } = body;
     if (!phone) throw new BadRequestException('Phone is required');
     if (userType === 'STAFF') {
       // In reality, hook this up to staff OTP logic
@@ -26,8 +28,8 @@ export class AuthController {
   }
 
   @Post('verify-otp')
-  async verifyOtp(@Body('phone') phone: string, @Body('otp') otp: string, @Body('userType') userType: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    if (!phone || !otp) throw new BadRequestException('Phone and OTP are required');
+  async verifyOtp(@Body() body: VerifyOtpDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { phone, otp, userType } = body;
     
     // We would normally branch on userType, but we'll mock verify returning a token for staff
     let tokens;
@@ -47,7 +49,7 @@ export class AuthController {
       const cookieOptions = {
         httpOnly: true,
         secure: isProd,
-        sameSite: isProd ? 'strict' as const : 'lax' as const,
+        sameSite: 'strict' as const,
         domain: isProd ? '.zesthealth.com' : undefined,
       };
 
@@ -68,9 +70,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Body('refresh_token') bodyRefreshToken?: string) {
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response, @Body() body: RefreshDto) {
     const isMobile = req.headers['x-client-type'] === 'mobile';
-    const refreshToken = isMobile ? bodyRefreshToken : req.cookies['refresh_token'];
+    const refreshToken = isMobile ? body.refresh_token : req.cookies['refresh_token'];
     
     if (!refreshToken) throw new UnauthorizedException('No refresh token provided');
 
