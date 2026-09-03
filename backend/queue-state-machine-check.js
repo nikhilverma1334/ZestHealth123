@@ -69,6 +69,7 @@ async function run() {
   // cleanup first
   await prisma.notificationLog.deleteMany({ where: { appointment: { patient: { name: { startsWith: 'QS Patient' } } } } });
   await prisma.appointment.deleteMany({ where: { patient: { name: { startsWith: 'QS Patient' } } } });
+  await prisma.doctorAvailability.deleteMany({ where: { doctor: { staffUser: { name: { startsWith: 'QS Admin' } } } } });
   await prisma.staffRole.deleteMany({ where: { staffUser: { name: { startsWith: 'QS Admin' } } } });
   await prisma.doctor.deleteMany({ where: { staffUser: { name: { startsWith: 'QS Admin' } } } });
   await prisma.staffUser.deleteMany({ where: { name: { startsWith: 'QS Admin' } } });
@@ -93,6 +94,11 @@ async function run() {
   const pB1 = await prisma.patient.create({ data: { name: 'QS Patient B1', phone: '+8888883' }});
   const pB2 = await prisma.patient.create({ data: { name: 'QS Patient B2', phone: '+8888884' }});
 
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  await prisma.doctorAvailability.create({ data: { doctorId: doctorA.id, branchId: branchA.id, date: today, maxPatientsPerSlot: 10 } });
+  await prisma.doctorAvailability.create({ data: { doctorId: doctorB.id, branchId: branchB.id, date: today, maxPatientsPerSlot: 10 } });
+
   const staffTokenA = jwt.sign({ sub: staffA.id, roles: [{ role: 'BRANCH_RECEPTION', tenantId: orgA.id, branchId: branchA.id }] }, SECRET, { expiresIn: '1h' });
   const staffTokenB = jwt.sign({ sub: staffB.id, roles: [{ role: 'BRANCH_RECEPTION', tenantId: orgB.id, branchId: branchB.id }] }, SECRET, { expiresIn: '1h' });
   const pTokenA1 = jwt.sign({ sub: pA1.id, role: 'PATIENT' }, SECRET, { expiresIn: '1h' });
@@ -101,10 +107,15 @@ async function run() {
   const pTokenB2 = jwt.sign({ sub: pB2.id, role: 'PATIENT' }, SECRET, { expiresIn: '1h' });
 
   // Book
-  const bookA1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: new Date(), timeSlot: '12:00', reason: 'QS Test', patientId: pA1.id }, staffTokenA, { 'x-tenant-id': orgA.id });
-  const bookA2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: new Date(), timeSlot: '12:30', reason: 'QS Test', patientId: pA2.id }, staffTokenA, { 'x-tenant-id': orgA.id });
-  const bookB1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: new Date(), timeSlot: '12:00', reason: 'QS Test', patientId: pB1.id }, staffTokenB, { 'x-tenant-id': orgB.id });
-  const bookB2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: new Date(), timeSlot: '12:30', reason: 'QS Test', patientId: pB2.id }, staffTokenB, { 'x-tenant-id': orgB.id });
+  const bookA1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pA1.id }, staffTokenA, { 'x-tenant-id': orgA.id });
+  const bookA2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: today, timeSlot: '12:30', reason: 'QS Test', patientId: pA2.id }, staffTokenA, { 'x-tenant-id': orgA.id });
+  const bookB1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pB1.id }, staffTokenB, { 'x-tenant-id': orgB.id });
+  const bookB2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: today, timeSlot: '12:30', reason: 'QS Test', patientId: pB2.id }, staffTokenB, { 'x-tenant-id': orgB.id });
+
+  if (bookA1.status >= 400 || bookA2.status >= 400 || bookB1.status >= 400 || bookB2.status >= 400) {
+    console.error('Failed to book appointments:', bookA1.body, bookA2.body, bookB1.body, bookB2.body);
+    process.exit(1);
+  }
 
   console.log('--- Connecting Sockets ---');
   const wsStaffA = await connect(staffTokenA, { tenantId: orgA.id, branchId: branchA.id });
@@ -176,6 +187,7 @@ async function run() {
     
     await prisma.notificationLog.deleteMany({ where: { appointment: { patient: { name: { startsWith: 'QS Patient' } } } } });
     await prisma.appointment.deleteMany({ where: { patient: { name: { startsWith: 'QS Patient' } } } });
+    await prisma.doctorAvailability.deleteMany({ where: { doctor: { staffUser: { name: { startsWith: 'QS Admin' } } } } });
     await prisma.staffRole.deleteMany({ where: { staffUser: { name: { startsWith: 'QS Admin' } } } });
     await prisma.doctor.deleteMany({ where: { staffUser: { name: { startsWith: 'QS Admin' } } } });
     await prisma.staffUser.deleteMany({ where: { name: { startsWith: 'QS Admin' } } });

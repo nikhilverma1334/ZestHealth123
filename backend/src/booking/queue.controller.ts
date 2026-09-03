@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, BadRequestException } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { TenantGuard } from '../auth/tenant.guard';
 
@@ -10,6 +10,9 @@ export class QueueController {
   @UseGuards(TenantGuard)
   async updateStatus(@Body() body: any) {
     const { appointmentId, status, lat, lng } = body;
+    if (!appointmentId) {
+      throw new BadRequestException('appointmentId is required');
+    }
     let location = undefined;
     if (lat && lng) {
       location = { lat: parseFloat(lat), lng: parseFloat(lng) };

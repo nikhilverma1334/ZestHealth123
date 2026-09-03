@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { TenantGuard } from '../auth/tenant.guard';
 
@@ -27,6 +27,9 @@ export class BookingController {
   @Post('cancel')
   @UseGuards(TenantGuard)
   async cancel(@Body() body: any) {
+    if (!body.appointmentId) {
+      throw new BadRequestException('appointmentId is required');
+    }
     return this.bookingService.cancelAppointment(body.appointmentId, body.reason);
   }
 }
