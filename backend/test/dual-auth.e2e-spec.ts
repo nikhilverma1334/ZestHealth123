@@ -55,7 +55,8 @@ describe('Dual Auth Flow (e2e)', () => {
       .expect(201);
     
     // Because x-client-type is NOT mobile, it should return cookies
-    const cookies = verifyRes.headers['set-cookie'] as string[];
+    const rawCookies = verifyRes.headers['set-cookie'];
+    const cookies = Array.isArray(rawCookies) ? rawCookies : [rawCookies];
     expect(cookies).toBeDefined();
     
     // Check jwt_token cookie
