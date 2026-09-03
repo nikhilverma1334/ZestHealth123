@@ -74,9 +74,8 @@ export class AuthController {
     
     if (!refreshToken) throw new UnauthorizedException('No refresh token provided');
 
-    // Normally verify the refresh token against DB
-    const newAccessToken = 'mock_refreshed_jwt';
-    const newRefreshToken = 'mock_refreshed_refresh_token';
+    // Verify and rotate the refresh token
+    const newTokens = this.authService.rotateRefreshToken(refreshToken);
 
     if (!isMobile) {
       const isProd = process.env.NODE_ENV === 'production';
@@ -87,18 +86,18 @@ export class AuthController {
         domain: isProd ? '.zesthealth.com' : undefined,
       };
 
-      res.cookie('jwt_token', newAccessToken, {
+      res.cookie('jwt_token', newTokens.access_token, {
         ...cookieOptions,
         maxAge: 15 * 60 * 1000
       });
-      res.cookie('refresh_token', newRefreshToken, {
+      res.cookie('refresh_token', newTokens.refresh_token, {
         ...cookieOptions,
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
       return { message: 'Tokens refreshed' };
     } else {
-      return { access_token: newAccessToken, refresh_token: newRefreshToken };
+      return newTokens;
     }
   }
 
