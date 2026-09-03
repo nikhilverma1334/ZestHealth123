@@ -55,7 +55,7 @@ function connect(token, roomOptions) {
           resolved = true;
           resolve({ socket, events });
         }
-      }, 500);
+      }, 800);
     });
     
     socket.on('queue_update', (data) => events.push(data));
@@ -145,6 +145,9 @@ async function run() {
   const wsPB1 = await connect(pTokenB1);
   const wsPB2 = await connect(pTokenB2);
 
+  // Give an extra 500ms safety buffer for all sockets to be ready
+  await new Promise(r => setTimeout(r, 500));
+
   const allClients = [wsStaffA, wsStaffB, wsPA1, wsPA2, wsPB1, wsPB2];
   
   function clearEvents() {
@@ -157,48 +160,48 @@ async function run() {
     await makeRequest('/queue/update-status', 'POST', { appointmentId: bookA1.body.id, status: 'IN_QUEUE', lat: 12.9, lng: 77.5 }, staffTokenA, { 'x-tenant-id': orgA.id });
     await new Promise(r => setTimeout(r, 800)); // wait for broadcast
     
-    console.log('  Staff A events:', wsStaffA.events.length);
-    console.log('  Patient A1 events:', wsPA1.events.length);
-    console.log('  Patient A2 events:', wsPA2.events.length);
+    console.log('  Staff A events:', JSON.stringify(wsStaffA.events, null, 2));
+    console.log('  Patient A1 events:', JSON.stringify(wsPA1.events, null, 2));
+    console.log('  Patient A2 events:', JSON.stringify(wsPA2.events, null, 2));
     console.log('  Staff B events (isolation check):', wsStaffB.events.length);
     
     let pass1 = wsStaffA.events.length > 0 && wsPA1.events.length > 0 && wsPA2.events.length > 0 && wsStaffB.events.length === 0 && wsPB1.events.length === 0;
-    console.log(pass1 ? '  PASS' : '  FAIL');
+    console.log(pass1 ? '  PASS' : '  FAIL (Expected Staff A > 0, PA1 > 0, PA2 > 0, Staff B === 0)');
 
     console.log('\nStep 2: Consultation Started (Tenant A)');
     clearEvents();
     await makeRequest('/queue/update-status', 'POST', { appointmentId: bookA1.body.id, status: 'IN_CONSULTATION' }, staffTokenA, { 'x-tenant-id': orgA.id });
     await new Promise(r => setTimeout(r, 800));
     
-    console.log('  Staff A events:', wsStaffA.events.length);
-    console.log('  Patient A1 ETA:', wsPA1.events[0]?.etaMinutes);
+    console.log('  Staff A events:', JSON.stringify(wsStaffA.events, null, 2));
+    console.log('  Patient A1 events:', JSON.stringify(wsPA1.events, null, 2));
     console.log('  Staff B events (isolation check):', wsStaffB.events.length);
     
     let pass2 = wsStaffA.events.length > 0 && wsPA1.events[0]?.etaMinutes === 0 && wsStaffB.events.length === 0;
-    console.log(pass2 ? '  PASS' : '  FAIL');
+    console.log(pass2 ? '  PASS' : '  FAIL (Expected Staff A > 0, PA1 etaMinutes === 0, Staff B === 0)');
 
     console.log('\nStep 3: No-Show (Tenant B)');
     clearEvents();
     await makeRequest('/queue/update-status', 'POST', { appointmentId: bookB1.body.id, status: 'NO_SHOW' }, staffTokenB, { 'x-tenant-id': orgB.id });
     await new Promise(r => setTimeout(r, 800));
     
-    console.log('  Staff B events:', wsStaffB.events.length);
-    console.log('  Patient B2 events:', wsPB2.events.length);
+    console.log('  Staff B events:', JSON.stringify(wsStaffB.events, null, 2));
+    console.log('  Patient B2 events:', JSON.stringify(wsPB2.events, null, 2));
     console.log('  Staff A events (isolation check):', wsStaffA.events.length);
     
     let pass3 = wsStaffB.events.length > 0 && wsPB2.events.length > 0 && wsStaffA.events.length === 0 && wsPA1.events.length === 0;
-    console.log(pass3 ? '  PASS' : '  FAIL');
+    console.log(pass3 ? '  PASS' : '  FAIL (Expected Staff B > 0, PB2 > 0, Staff A === 0)');
 
     console.log('\nStep 4: Patient-Initiated Cancellation (Tenant A)');
     clearEvents();
     await makeRequest('/booking/cancel', 'POST', { appointmentId: bookA2.body.id, reason: 'Test' }, pTokenA2);
     await new Promise(r => setTimeout(r, 800));
     
-    console.log('  Staff A events:', wsStaffA.events.length);
+    console.log('  Staff A events:', JSON.stringify(wsStaffA.events, null, 2));
     console.log('  Staff B events (isolation check):', wsStaffB.events.length);
     
     let pass4 = wsStaffA.events.length > 0 && wsStaffB.events.length === 0;
-    console.log(pass4 ? '  PASS' : '  FAIL');
+    console.log(pass4 ? '  PASS' : '  FAIL (Expected Staff A > 0, Staff B === 0)');
 
   } finally {
     console.log('\n--- Cleaning Up Sockets and DB ---');
