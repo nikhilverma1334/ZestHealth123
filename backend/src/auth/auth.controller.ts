@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req, Get, Query, Headers } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 
@@ -18,9 +18,9 @@ export class AuthController {
   }
 
   @Get('mock-otp')
-  getMockOtp(@Query('phone') phone: string) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new UnauthorizedException('Mock OTP endpoint is disabled in production');
+  getMockOtp(@Query('phone') phone: string, @Headers('x-test-secret') secret: string) {
+    if (process.env.NODE_ENV === 'production' || secret !== process.env.TEST_ENDPOINTS_SECRET) {
+      throw new UnauthorizedException('Mock OTP endpoint is disabled or unauthorized');
     }
     return { otp: this.authService.getMockOtpForTest(phone) };
   }

@@ -48,10 +48,14 @@ describe('Booking Flow (e2e)', () => {
     });
 
     // 1. Generate OTP
+    process.env.TEST_ENDPOINTS_SECRET = 'e2e-secret-123';
     await request(app.getHttpServer()).post('/auth/generate-otp').send({ phone: '+55555', name: 'Flow Patient' }).expect(201);
     
     // Fetch the mock OTP from our test-only endpoint
-    const otpRes = await request(app.getHttpServer()).get('/auth/mock-otp?phone=%2B55555').expect(200);
+    const otpRes = await request(app.getHttpServer())
+      .get('/auth/mock-otp?phone=%2B55555')
+      .set('x-test-secret', 'e2e-secret-123')
+      .expect(200);
     const realOtp = otpRes.body.otp;
     
     // 2. Verify OTP
