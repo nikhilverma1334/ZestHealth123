@@ -91,6 +91,17 @@ export class QueueService implements OnModuleDestroy {
       }
     });
 
+    // Explicitly notify the patient whose status just changed to a terminal state
+    if (['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(status)) {
+      this.queueGateway.notifyPatient(appointment.patientId, {
+        appointmentId: appointment.id,
+        tokenNumber: appointment.tokenNumber,
+        status: status,
+        patientsAhead: 0,
+        etaSeconds: 0
+      });
+    }
+
     if (status === 'COMPLETED' && appointment.consultationStartedAt) {
       const durationSeconds = Math.floor((new Date().getTime() - new Date(appointment.consultationStartedAt).getTime()) / 1000);
       await this.updateRollingAverage(appointment.doctorId, appointment.branchId, appointment.doctor.specialties, durationSeconds);
@@ -146,7 +157,21 @@ export class QueueService implements OnModuleDestroy {
       }
     });
 
-    if (activeAppointments.length === 0) return;
+    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
+    if (!branch) return;
+    const tenantId = branch.hospitalOrgId;
+
+    if (activeAppointments.length === 0) {
+      this.queueGateway.notifyTenantStaff(tenantId, branchId, {
+        doctorId,
+        branchId,
+        date,
+        timeSlot,
+        currentlyServingToken: null,
+        queueLength: 0
+      });
+      return;
+    }
 
     // Get doctor specialties from the first active appointment for fallback
     const specialties = activeAppointments[0].doctor.specialties;
@@ -209,16 +234,13 @@ export class QueueService implements OnModuleDestroy {
       });
     }
 
-    if (activeAppointments.length > 0) {
-      const tenantId = activeAppointments[0].tenantId;
-      this.queueGateway.notifyTenantStaff(tenantId, branchId, {
-        doctorId,
-        branchId,
-        date,
-        timeSlot,
-        currentlyServingToken,
-        queueLength: activeAppointments.length
-      });
-    }
+    this.queueGateway.notifyTenantStaff(tenantId, branchId, {
+      doctorId,
+      branchId,
+      date,
+      timeSlot,
+      currentlyServingToken,
+      queueLength: activeAppointments.length
+    });
   }
 }

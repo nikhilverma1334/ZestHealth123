@@ -128,9 +128,9 @@ async function run() {
 
   // Book
   const bookA1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pA1.id }, staffTokenA, { 'x-tenant-id': orgA.id });
-  const bookA2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: today, timeSlot: '12:30', reason: 'QS Test', patientId: pA2.id }, staffTokenA, { 'x-tenant-id': orgA.id });
+  const bookA2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorA.id, branchId: branchA.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pA2.id }, staffTokenA, { 'x-tenant-id': orgA.id });
   const bookB1 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pB1.id }, staffTokenB, { 'x-tenant-id': orgB.id });
-  const bookB2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: today, timeSlot: '12:30', reason: 'QS Test', patientId: pB2.id }, staffTokenB, { 'x-tenant-id': orgB.id });
+  const bookB2 = await makeRequest('/booking/book', 'POST', { doctorId: doctorB.id, branchId: branchB.id, date: today, timeSlot: '12:00', reason: 'QS Test', patientId: pB2.id }, staffTokenB, { 'x-tenant-id': orgB.id });
 
   if (bookA1.status >= 400 || bookA2.status >= 400 || bookB1.status >= 400 || bookB2.status >= 400) {
     console.error('Failed to book appointments:', bookA1.body, bookA2.body, bookB1.body, bookB2.body);
@@ -177,8 +177,8 @@ async function run() {
     console.log('  Patient A1 events:', JSON.stringify(wsPA1.events, null, 2));
     console.log('  Staff B events (isolation check):', wsStaffB.events.length);
     
-    let pass2 = wsStaffA.events.length > 0 && wsPA1.events[0]?.etaMinutes === 0 && wsStaffB.events.length === 0;
-    console.log(pass2 ? '  PASS' : '  FAIL (Expected Staff A > 0, PA1 etaMinutes === 0, Staff B === 0)');
+    let pass2 = wsStaffA.events.length > 0 && wsPA1.events[0]?.etaSeconds === 0 && wsStaffB.events.length === 0;
+    console.log(pass2 ? '  PASS' : '  FAIL (Expected Staff A > 0, PA1 etaSeconds === 0, Staff B === 0)');
 
     console.log('\nStep 3: No-Show (Tenant B)');
     clearEvents();

@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueGateway } from './queue.gateway';
-
+import { QueueService } from './queue.service';
 import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
@@ -9,6 +9,7 @@ export class BookingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueGateway: QueueGateway,
+    private readonly queueService: QueueService,
     private readonly notificationService: NotificationService
   ) {}
 
@@ -99,34 +100,18 @@ export class BookingService {
       updated.patient.phone
     ).catch(console.error);
 
-    // Notify affected patients about queue update
-    await this.recalculateAndPushQueue(updated.doctorId, updated.branchId, updated.date, updated.timeSlot);
-    
-    return updated;
-  }
-
-  async recalculateAndPushQueue(doctorId: string, branchId: string, date: Date, timeSlot: string) {
-    const activeAppointments = await this.prisma.appointment.findMany({
-      where: {
-        doctorId,
-        branchId,
-        date,
-        timeSlot,
-        status: { notIn: ['CANCELLED', 'NO_SHOW', 'COMPLETED'] }
-      },
-      orderBy: { tokenNumber: 'asc' }
+    // Explicitly notify the cancelled patient via websocket
+    this.queueGateway.notifyPatient(updated.patientId, {
+      appointmentId: updated.id,
+      tokenNumber: updated.tokenNumber,
+      status: 'CANCELLED',
+      patientsAhead: 0,
+      etaSeconds: 0
     });
 
-    // For each patient, compute "patients ahead" and push update
-    for (const apt of activeAppointments) {
-      const patientsAhead = activeAppointments.filter(a => a.tokenNumber < apt.tokenNumber).length;
-      
-      this.queueGateway.notifyPatient(apt.patientId, {
-        appointmentId: apt.id,
-        tokenNumber: apt.tokenNumber,
-        patientsAhead,
-        status: apt.status
-      });
-    }
+    // Notify affected patients and staff about queue update
+    await this.queueService.recalculateQueueETAs(updated.doctorId, updated.branchId, updated.date, updated.timeSlot);
+    
+    return updated;
   }
 }
