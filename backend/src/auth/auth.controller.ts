@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, BadRequestException, Res, Req, Get, Query } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 
@@ -15,6 +15,14 @@ export class AuthController {
       return { message: 'OTP sent to staff' };
     }
     return this.authService.requestPatientOtp(phone);
+  }
+
+  @Get('mock-otp')
+  getMockOtp(@Query('phone') phone: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new UnauthorizedException('Mock OTP endpoint is disabled in production');
+    }
+    return { otp: this.authService.getMockOtpForTest(phone) };
   }
 
   @Post('verify-otp')

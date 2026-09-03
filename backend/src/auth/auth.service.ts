@@ -7,11 +7,17 @@ import * as bcrypt from 'bcrypt';
 export class AuthService {
   // Simulating Redis for OTP storage for simplicity in Phase 1
   private otpStore = new Map<string, string>();
+  private devPlaintextOtpStore = new Map<string, string>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  getMockOtpForTest(phone: string) {
+    if (process.env.NODE_ENV === 'production') return null;
+    return this.devPlaintextOtpStore.get(phone) || null;
+  }
 
   async requestPatientOtp(phone: string) {
     // Generate a 4-digit OTP
@@ -22,6 +28,10 @@ export class AuthService {
     const hashedOtp = await bcrypt.hash(otp, salt);
     
     this.otpStore.set(phone, hashedOtp);
+
+    if (process.env.NODE_ENV !== 'production') {
+      this.devPlaintextOtpStore.set(phone, otp);
+    }
 
     // MOCK SMS PROVIDER: log the plaintext OTP so we can test
     console.log(`[MOCK SMS] OTP for ${phone} is ${otp}`);
