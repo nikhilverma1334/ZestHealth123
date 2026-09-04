@@ -16,6 +16,7 @@ describe('IVR Webhook (e2e)', () => {
   let appointmentIdCancel: string;
   let appointmentIdConfirm: string;
   let tenantId: string;
+  let staffId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -50,6 +51,7 @@ describe('IVR Webhook (e2e)', () => {
     const staff = await prisma.staffUser.create({
       data: { name: 'Dr. IVR', phone: `+1${Date.now()}` }
     });
+    staffId = staff.id;
     const staffRole = await prisma.staffRole.create({
       data: { staffUserId: staff.id, role: 'DOCTOR', tenantId }
     });
@@ -104,11 +106,11 @@ describe('IVR Webhook (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Cleanup
+    // Cleanup - explicit cascade order to avoid foreign key errors
     await prisma.notificationLog.deleteMany({ where: { appointment: { patientId } } });
     await prisma.appointment.deleteMany({ where: { patientId } });
     await prisma.doctorAvailability.deleteMany({ where: { doctorId } });
-    await prisma.doctor.deleteMany({ where: { id: doctorId } });
+    await prisma.doctor.deleteMany({ where: { staffUserId: staffId } }).catch(()=>null);
     await prisma.staffRole.deleteMany({ where: { tenantId } });
     await prisma.staffUser.deleteMany({ where: { name: 'Dr. IVR' } });
     await prisma.patient.deleteMany({ where: { id: patientId } });

@@ -14,6 +14,10 @@ export class NotificationCron {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async retryFailedNotifications() {
+    if (process.env.NODE_ENV === 'test') {
+      return; // Do not run background cron jobs during e2e testing to prevent DB connection starvation
+    }
+
     this.logger.log('Starting notification retry job...');
     
     // 1. Claim jobs atomically to prevent race conditions across multiple pods/instances
