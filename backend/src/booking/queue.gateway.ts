@@ -102,10 +102,12 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   notifyPatient(patientId: string, payload: any) {
+    if (!this.server) return;
     this.server.to(`patient_${patientId}`).emit('queue_update', payload);
   }
 
   notifyTenantStaff(tenantId: string, branchId: string, payload: any) {
+    if (!this.server) return;
     this.server.to(`queue_${tenantId}`).to(`queue_${tenantId}_${branchId}`).emit('queue_update', payload);
   }
 }

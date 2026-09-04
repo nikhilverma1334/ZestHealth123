@@ -191,7 +191,8 @@ model NotificationLog {
   appointmentId  String
   channel        String      // SMS, WHATSAPP, IVR, PUSH
   type           String      // BOOKING_CONFIRMATION, CANCELLED, ETA_ALERT
-  status         String      // PENDING, SENT, FAILED
+  status         String      // PENDING, SENT, FAILED, RETRYING
+  retryCount     Int         @default(0)
   sentAt         DateTime?
   createdAt      DateTime    @default(now())
 
